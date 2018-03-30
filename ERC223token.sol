@@ -7,7 +7,11 @@ import "browser/ERC223ReceivingContract.sol";
 
 
 contract centareumToken is Token("CTM", "Centareum Token", 18, 1000), ERC20, ERC223 {
-
+    
+    mapping(address => uint) public expiryOf; //Maps address to its expiry
+    uint private leaseTime = 1; //LeaseTime can be changed
+    
+    //ERC223's functions
     function centareumToken() public {
         balance[msg.sender] = totalSupply;
     }
@@ -72,5 +76,32 @@ contract centareumToken is Token("CTM", "Centareum Token", 18, 1000), ERC20, ERC
     
     function allowance(address owner, address spender) public constant returns (uint) {
         return allowances[owner][spender];
+    }
+    
+    
+    
+    
+    //Time-based contract components below this line
+    modifier expire(address addr) {
+        if (expiryOf[addr] < block.timestamp) {
+            expiryOf[addr] = 0;
+            balance[addr] = 0;
+        }
+        _;
+    }
+    
+    function lease() public payable expire(msg.sender) returns (bool) {
+        require(msg.value == 1 ether);
+        require(balance[msg.sender] == 0);
+        balance[msg.sender] = 1;
+        expiryOf[msg.sender] = block.timestamp + leaseTime;
+        return true;
+    }
+     function getExpiryOf() public returns (uint) {
+        return getExpiryOf(msg.sender);        
+    }
+    
+    function getExpiryOf(address addr) public expire(addr) returns (uint) {
+        return expiryOf[addr];
     }
 }
